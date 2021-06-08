@@ -1,0 +1,45 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+#@overlay/match by=overlay.subset({"name": "Build and publish"}), expects="0+"
+#@ load("integration-tests-legacy-steps.lib.yml", "integration_tests_legacy_steps")
+#@ load("workflows.lib.yml", "pull_request_defaults")
+#@ load("workflows.lib.yml", "image_full_tag")
+#@ load("workflows.lib.yml", "image_versioned_tag")
+#@ load("workflows.lib.yml", "tag_cache")
+#@ load("workflows.lib.yml", "tag_version")
+#@ load("workflows.lib.yml", "login_docker")
+#@ load("workflows.lib.yml", "checkout_private_actions")
+#@ load("workflows.lib.yml", "checkout")
+#@ load("workflows.lib.yml", "build_and_push_docker")
+#@ load("workflows.lib.yml", "image_build_job")
+#@ load("workflows.lib.yml", "get_runner")
+#@ load("workflows.lib.yml", "docker_build_job_name")
+#@ load("workflows.lib.yml", "job_name_from_slug")
+
+#@ load("@ytt:template", "template")
+---
+#@ def set_version(context):
+#@ if hasattr(context, "versioning"):
+#@ if hasattr(context.versioning,"use_branch_slug"):
+#@ if not context.versioning.use_branch_slug:
+#@ return "none"
+#@ end 
+#@ end
+#@ end
+#@ return "${{ steps.issue-key.outputs.issue_id_slug }}"
+#@ end
+
+#@ def set_build_number(context):
+#@ if hasattr(context, "versioning"):
+#@ if hasattr(context.versioning,"use_build_number"):
+#@ if context.versioning.use_build_number:
+#@ return "${{ github.run_number }}"
+#@ end 
+#@ end
+#@ end
+#@ return "none"
+#@ end
+
+#@ def get_deployment_job_name(environment):
+#@ return job_name_from_slug(environment,"publish-")
+#@ end

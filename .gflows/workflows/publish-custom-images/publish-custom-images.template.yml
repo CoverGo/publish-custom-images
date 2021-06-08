@@ -1,0 +1,125 @@
+#@ load("@ytt:data", "data")
+#@ load("workflows.lib.yml", "checkout_private_actions")
+#@ load("workflows.lib.yml", "docker_build_job_name")
+#@ load("workflows.lib.yml", "job_name")
+#@ load("workflows.lib.yml", "pull_request_defaults")
+#@ load("workflows.lib.yml", "image_full_tag")
+#@ load("workflows.lib.yml", "image_build_job")
+#@ load("publish_custom_images.lib.yml", "set_build_number")
+#@ load("publish_custom_images.lib.yml", "set_version")
+#@ load("@ytt:template", "template")
+
+name: Publish Custom Images
+"on":
+  workflow_run:
+    workflows:
+      #@ for workflow in data.values.publish_custom_images.triggers.workflows:
+      - #@ workflow
+      #@ end 
+    types:
+      #@ for condition in data.values.publish_custom_images.triggers.conditions:
+      - #@ condition
+      #@ end 
+    branches: 
+      #@ for branch in data.values.publish_custom_images.triggers.branches:
+      - #@ branch
+      #@ end
+   
+jobs:
+  version:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    name: Get version from git tag
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+      file_version: ${{ steps.version.outputs.file_version }}
+      information_version: ${{ steps.version.outputs.information_version }}
+      issue_id_slug: ${{ steps.issue-key.outputs.issue_id_slug }}
+      docker_image_ali_cloud_tags: ${{ steps.tags.outputs.docker_image_ali_cloud_tags }}
+      docker_image_ghcr_tags: ${{ steps.tags.outputs.docker_image_ghcr_tags }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - #@ checkout_private_actions()
+    - name: Get jira Ticket slug
+      id: issue-key
+      uses: ./.github/actions/get-issue-key
+    - name: Get version from git tags
+      id: version
+      uses: ./.github/actions/get-version
+      with:
+        build-number: #@ set_build_number(data.values)
+        pre-release-version: #@ set_version(data.values)
+    - name: Get docker image tags
+      id: tags
+      env: 
+        ghcr_versioned_tag: #@ image_full_tag(data.values.cache_registry.url,data.values.publish_custom_images.service.image_name,"${{ steps.version.outputs.app_version }}")
+        ali_cloud_versioned_tag: #@ image_full_tag(data.values.main_registry.url,data.values.publish_custom_images.service.image_name,"${{ steps.version.outputs.app_version }}")
+        ghcr_latest_tag: #@ image_full_tag(data.values.cache_registry.url,data.values.publish_custom_images.service.image_name,"latest")
+        ali_cloud_latest_tag: #@ image_full_tag(data.values.main_registry.url,data.values.publish_custom_images.service.image_name,"latest")
+      run: |
+
+       ali_cloud_tags=${ali_cloud_versioned_tag}
+       ghcr_tags=${ghcr_versioned_tag}
+        
+       git_ref=${{ github.ref }}
+       branch=${git_ref#refs/heads/}
+       if [[ "$branch" = 'main' || "$branch" = 'master'  ]]; then
+         ali_cloud_tags="${ali_cloud_tags},${ali_cloud_latest_tag}"
+         ghcr_tags="${ghcr_tags},${ghcr_latest_tag}"
+       fi
+        
+       echo final tags for ghcr are:  ${ghcr_tags}
+       echo final tags for ali are: ${ali_cloud_tags}
+       echo ::set-output name=docker_image_ghcr_tags::${ghcr_tags}
+       echo ::set-output name=docker_image_ali_cloud_tags::${ali_cloud_tags}
+
+  # docker-build-service-uat1: 
+  #   name: "Build UAT1"
+  #   if: always()
+  #   needs:
+  #     - version
+  
+  # docker-publish-github-uat1:
+  #   name: "Github UAT1"
+  #   if: always()
+  #   needs:
+  #     - version
+
+  # docker-publish-alicloud-uat1:
+  #   name: "Alicloud UAT1"
+  #   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+  #   needs:
+  #     - version
+
+  # docker-build-service-uat2: 
+  #   name: "Build UAT2"
+  #   if: always()
+  #   needs:
+  #     - version
+
+  # docker-publish-github-uat2:
+  #   name: "Github UAT2"
+  #   if: always()
+  #   needs:
+  #     - version
+
+  # docker-publish-alicloud-uat2:
+  #   name: "Alicloud UAT2"
+  #   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+  #   needs:
+  #     - version
+  
+#@ if hasattr(data.values.publish_custom_images,"custom_images"):
+#@ for custom_image in data.values.publish_custom_images.custom_images:
+  job: #@ template.replace({docker_build_job_name(custom_image): image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, needs=["version"], job_name="Build "+custom_image.name+" Image", add_if=False)})
+  job: #@ template.replace({job_name(custom_image.slug, "docker-publish-github-"): image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, needs=["version"], job_name="Publish "+custom_image.name+" to GitHub", tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-"+custom_image.slug, add_if=False)})
+  # docker-build-service-uat3: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, add_if=False )
+  # #@overlay/match missing_ok=True
+  # docker-publish-github-uat3: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-uat2", add_if=False )
+  # #@overlay/match missing_ok=True
+  # docker-publish-alicloud-uat3: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ali_cloud_tags }}-uat2", add_if=False )
+#@ end
+#@ end

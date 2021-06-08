@@ -1,0 +1,8 @@
+{
+    "name": "publish-custom-images-net",
+    "files": [
+      "workflows/publish-custom-images/publish-custom-images.template.yml",
+      "libs/images_build.yml",
+      "libs/publish_custom_images.lib.yml"
+    ]
+  }

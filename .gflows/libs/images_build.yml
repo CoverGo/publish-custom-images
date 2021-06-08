@@ -1,0 +1,43 @@
+# #@ load("@ytt:overlay", "overlay")
+# #@overlay/match by=overlay.subset({"name": "Publish Custom Images"}), expects="0+"
+# #@ load("workflows.lib.yml", "image_build_job")
+# #@ load("@ytt:data", "data")
+# #@ load("workflows.lib.yml", "tag_cache")
+# #@ load("workflows.lib.yml", "tag_version")
+# #@ load("workflows.lib.yml", "checkout_private_actions")
+# #@ load("workflows.lib.yml", "docker_build_job_name")
+
+# #@ load("@ytt:template", "template")
+
+# ---
+# jobs:
+# #@ if data.values.publish_custom_images.uat1.enabled:
+#   #@overlay/match missing_ok=True
+#   docker-build-service-uat1: #@ image_build_job(data.values.publish_custom_images.uat1, data.values.cache_registry, main_registry=data.values.main_registry, add_if=False )
+#   #@overlay/match missing_ok=True
+#   docker-publish-github-uat1: #@ image_build_job(data.values.publish_custom_images.uat1, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-uat1", add_if=False  )
+#   #@overlay/match missing_ok=True
+#   docker-publish-alicloud-uat1: #@ image_build_job(data.values.publish_custom_images.uat1, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ali_cloud_tags }}-uat1", add_if=False )
+# #@ end
+
+# #@ if data.values.publish_custom_images.uat2.enabled:
+#   docker-build-service-uat2: #@ image_build_job(data.values.publish_custom_images.uat2, data.values.cache_registry, main_registry=data.values.main_registry, add_if=False )
+#   #@overlay/match missing_ok=True
+#   docker-publish-github-uat2: #@ image_build_job(data.values.publish_custom_images.uat2, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-uat2", add_if=False )
+#   #@overlay/match missing_ok=True
+#   docker-publish-alicloud-uat2: #@ image_build_job(data.values.publish_custom_images.uat2, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ali_cloud_tags }}-uat2", add_if=False )
+# #@ end
+
+# # #@ if hasattr(data.values.publish_custom_images,"custom_images"):
+# # #@ for custom_image in data.values.publish_custom_images.custom_images:
+# #   docker-build-service-uat2: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, add_if=False )
+# #   #@overlay/match missing_ok=True
+# #   docker-publish-github-uat2: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-uat2", add_if=False )
+# #   #@overlay/match missing_ok=True
+# #   docker-publish-alicloud-uat2: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ali_cloud_tags }}-uat2", add_if=False )
+# #   # job: #@ template.replace({docker_build_job_name(custom_image): image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, tag_build = "${{ needs.version.outputs.docker_image_ghcr_tags }}-uat2", add_if=False)})
+# #   # job: #@ template.replace({docker_build_job_name(custom_image): image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, job_name=custom_image.name)})
+# #   # docker-publish-alicloud-uat2: #@ image_build_job(custom_image, data.values.cache_registry, main_registry=data.values.main_registry, job_name=custom_image.name)
+# # #@ end
+# # #@ end
+

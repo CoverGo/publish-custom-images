@@ -1,0 +1,43 @@
+#@data/values
+---
+publish_custom_images:
+  runner: ubuntu-latest
+  triggers:
+    workflows: 
+      - "Publish Custom Images"
+    conditions: 
+      - completed
+    branches:
+      - master
+      - main
+  repository:
+    url: keys_repo
+    branch: master
+    token: ${{ github.token }}   
+     
+  service:
+    image_name: covergo/auth
+
+  custom_images:
+    - name: Custom Image UAT1
+      dockerfile: Custom-1.Dockerfile
+      image_name: covergo/custom-image
+      slug: custom-uat1
+    - name: Custom Image UAT2
+      dockerfile: Custom-2.Dockerfile
+      image_name: covergo/custom-image
+      slug: custom-uat2
+
+  image: registry-intl.cn-hongkong.aliyuncs.com/covergo/users:${{ needs.version.outputs.app_version }}
+
+cache_registry:
+  url: ghcr.io
+  name: GitHub Container Registry
+  user: ${{ github.repository_owner }}
+  password: ${{ secrets.CR_PAT_FULL }}
+
+main_registry:
+  url: registry-intl.cn-hongkong.aliyuncs.com
+  name: AliCloud Container Registry
+  user: ${{ secrets.ALI_CONTAINER_REGISTRY_USER }}
+  password: ${{ secrets.ALI_CONTAINER_REGISTRY_PASSWORD }}
